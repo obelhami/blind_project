@@ -219,7 +219,7 @@ export default function AIAssistantPanel({ isOpen, onClose }) {
             <span className="text-xs text-darkGreen/50">
               {hasElevenLabs()
                 ? 'Entrée et sortie vocale : ElevenLabs'
-                : 'Micro (navigateur) — ajoutez VITE_ELEVENLABS_API_KEY pour ElevenLabs'}
+                : ''}
             </span>
           </div>
         </div>

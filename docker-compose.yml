@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+    # Add env_file: [.env] and create .env from .env.example if you need API keys
+    restart: unless-stopped
