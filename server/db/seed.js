@@ -34,12 +34,45 @@ const ordonnances = [
   },
 ]
 
+const patient2 = {
+  nom_complet: 'Lahcen Kazaz',
+  date_naissance: '22/07/1978',
+  sexe: 'Masculin',
+  groupe_sanguin: 'A+',
+  numero_securite_sociale: '1 78 07 22 456 78 90',
+  adresse_complete: '45 avenue Hassan II, 30000 Fès, Maroc',
+  coordonnees: '06 65 43 21 09 — lahcen.kazaz@email.com',
+  personne_a_contacter: 'Samira Kazaz — 06 11 22 33 44 — Épouse',
+}
+
+const antecedents2 = {
+  personnels: 'Asthme allergique. Fracture tibia droite en 2015. Aucune allergie médicamenteuse connue.',
+  familiaux: 'Asthme (mère). Hypertension (père).',
+}
+
+const compteRendus2 = [
+  {
+    date: '13/02/2025',
+    contenu: 'Consultation de suivi. Asthme bien contrôlé sous traitement. Pas d’exacerbation récente.\nExamen pulmonaire normal.',
+  },
+]
+
+const ordonnances2 = [
+  {
+    date: '13/02/2025',
+    medecin: 'Dr. Bennani',
+    contenu: 'Salbutamol aérosol : 2 bouffées si besoin\nMontélukast 10 mg : 1 comprimé le soir',
+    vendu: 0,
+  },
+]
+
+const insertPatient = db.prepare(`
+  INSERT INTO patients (nom_complet, date_naissance, sexe, groupe_sanguin, numero_securite_sociale, adresse_complete, coordonnees, personne_a_contacter)
+  VALUES (@nom_complet, @date_naissance, @sexe, @groupe_sanguin, @numero_securite_sociale, @adresse_complete, @coordonnees, @personne_a_contacter)
+`)
+
 const countPatients = db.prepare('SELECT COUNT(*) as n FROM patients').get()
 if (countPatients.n === 0) {
-  const insertPatient = db.prepare(`
-    INSERT INTO patients (nom_complet, date_naissance, sexe, groupe_sanguin, numero_securite_sociale, adresse_complete, coordonnees, personne_a_contacter)
-    VALUES (@nom_complet, @date_naissance, @sexe, @groupe_sanguin, @numero_securite_sociale, @adresse_complete, @coordonnees, @personne_a_contacter)
-  `)
   insertPatient.run({
     nom_complet: patient.nom_complet,
     date_naissance: patient.date_naissance,
@@ -72,6 +105,43 @@ if (countPatients.n === 0) {
   }
 
   console.log('Database seeded with patient id:', patientId)
-} else {
+}
+
+if (countPatients.n < 2) {
+  insertPatient.run({
+    nom_complet: patient2.nom_complet,
+    date_naissance: patient2.date_naissance,
+    sexe: patient2.sexe,
+    groupe_sanguin: patient2.groupe_sanguin || '',
+    numero_securite_sociale: patient2.numero_securite_sociale,
+    adresse_complete: patient2.adresse_complete,
+    coordonnees: patient2.coordonnees,
+    personne_a_contacter: patient2.personne_a_contacter,
+  })
+
+  const { id: patient2Id } = db.prepare('SELECT last_insert_rowid() as id').get()
+
+  db.prepare('INSERT INTO antecedents (patient_id, personnels, familiaux) VALUES (?, ?, ?)').run(
+    patient2Id,
+    antecedents2.personnels,
+    antecedents2.familiaux
+  )
+
+  const insertCr = db.prepare('INSERT INTO compte_rendus (patient_id, date, contenu) VALUES (?, ?, ?)')
+  for (const cr of compteRendus2) {
+    insertCr.run(patient2Id, cr.date, cr.contenu)
+  }
+
+  const insertOrd = db.prepare(
+    'INSERT INTO ordonnances (patient_id, date, medecin, contenu, vendu) VALUES (?, ?, ?, ?, ?)'
+  )
+  for (const ord of ordonnances2) {
+    insertOrd.run(patient2Id, ord.date, ord.medecin, ord.contenu, ord.vendu)
+  }
+
+  console.log('Database seeded with patient 2 id:', patient2Id)
+}
+
+if (countPatients.n >= 2) {
   console.log('Database already has data, skip seed.')
 }

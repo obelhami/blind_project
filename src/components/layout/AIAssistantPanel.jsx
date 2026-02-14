@@ -1,50 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Bot, User, Loader2 } from 'lucide-react'
+import { Sparkles, Bot, User, Loader2, Square } from 'lucide-react'
 import { sendChatMessage } from '../../api/client'
 import VoiceInputButton from '../ui/VoiceInputButton'
 import { useCurrentPatient } from '../../context/CurrentPatientContext'
 import { config, hasElevenLabs } from '../../config/env'
 
-/** Speak reply: ElevenLabs TTS if key set, else browser TTS (French). */
-async function speakReply(text) {
-  const t = text?.trim()
-  if (!t) return
-  if (hasElevenLabs()) {
-    try {
-      const res = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${config.elevenLabsVoiceId}`,
-        {
-          method: 'POST',
-          headers: {
-            'xi-api-key': config.elevenLabsApiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text: t,
-            model_id: 'eleven_multilingual_v2',
-          }),
-        }
-      )
-      if (!res.ok) throw new Error(await res.text())
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      await audio.play()
-      audio.onended = () => URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('ElevenLabs TTS error:', err)
-      fallbackSpeak(t)
-    }
-  } else {
-    fallbackSpeak(t)
-  }
-}
-
-function fallbackSpeak(text) {
+function fallbackSpeak(text, onEnd) {
   if (!('speechSynthesis' in window)) return
   const u = new SpeechSynthesisUtterance(text)
   u.lang = 'fr-FR'
   u.rate = 0.95
+  u.onend = onEnd
   window.speechSynthesis.speak(u)
 }
 
@@ -53,11 +19,72 @@ export default function AIAssistantPanel({ isOpen, onClose }) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const bottomRef = useRef(null)
+  const currentAudioRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!isOpen) stopSpeaking()
+  }, [isOpen])
+
+  const stopSpeaking = () => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause()
+      currentAudioRef.current.currentTime = 0
+      currentAudioRef.current = null
+    }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    setIsSpeaking(false)
+  }
+
+  const speakReply = async (text) => {
+    const t = text?.trim()
+    if (!t) return
+    if (hasElevenLabs()) {
+      try {
+        const res = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${config.elevenLabsVoiceId}`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': config.elevenLabsApiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: t,
+              model_id: 'eleven_multilingual_v2',
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.75,
+              },
+            }),
+          }
+        )
+        if (!res.ok) throw new Error(await res.text())
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const audio = new Audio(url)
+        currentAudioRef.current = audio
+        setIsSpeaking(true)
+        audio.onended = () => {
+          URL.revokeObjectURL(url)
+          currentAudioRef.current = null
+          setIsSpeaking(false)
+        }
+        await audio.play()
+      } catch (err) {
+        console.error('ElevenLabs TTS error:', err)
+        fallbackSpeak(t, () => setIsSpeaking(false))
+      }
+    } else {
+      setIsSpeaking(true)
+      fallbackSpeak(t, () => setIsSpeaking(false))
+    }
+  }
 
   const handleVoiceText = async (text) => {
     const trimmed = text?.trim()
@@ -127,10 +154,8 @@ export default function AIAssistantPanel({ isOpen, onClose }) {
             {messages.length === 0 && (
               <div className="text-center text-darkGreen/50 py-6">
                 <Bot className="w-10 h-10 mx-auto mb-2 opacity-50" strokeWidth={1.5} />
-                <p className="text-sm font-medium text-darkGreen/70">Voix → Texte → Agent → Voix</p>
-                <p className="text-xs mt-2">1. Appuyez sur le micro et parlez.</p>
-                <p className="text-xs">2. Votre phrase est envoyée à l’agent (données dossier).</p>
-                <p className="text-xs">3. La réponse est lue à voix haute.</p>
+                <p className="text-sm font-medium text-darkGreen/70">Tapez sur le micro et parlez.</p>
+
               </div>
             )}
             {messages.map((m, i) => (
@@ -178,10 +203,23 @@ export default function AIAssistantPanel({ isOpen, onClose }) {
             </div>
           )}
 
-          <div className="p-5 sm:p-6 border-t border-darkGreen/[0.06] flex items-center gap-3">
+          <div className="p-5 sm:p-6 border-t border-darkGreen/[0.06] flex items-center gap-3 flex-wrap">
             <VoiceInputButton onTextReceived={handleVoiceText} disabled={loading} />
+            {isSpeaking && (
+              <button
+                type="button"
+                onClick={stopSpeaking}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                title="Arrêter la lecture"
+              >
+                <Square className="w-4 h-4" fill="currentColor" strokeWidth={0} />
+                Arrêter
+              </button>
+            )}
             <span className="text-xs text-darkGreen/50">
-              {hasElevenLabs() ? 'Micro (voix → texte → agent → voix)' : 'Micro (navigateur)'}
+              {hasElevenLabs()
+                ? 'Entrée et sortie vocale : ElevenLabs'
+                : 'Micro (navigateur) — ajoutez VITE_ELEVENLABS_API_KEY pour ElevenLabs'}
             </span>
           </div>
         </div>

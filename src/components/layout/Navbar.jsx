@@ -1,9 +1,16 @@
 import { Bell, User, Fingerprint, Mic } from 'lucide-react'
 
-export default function Navbar({ onLock, onOpenAIPanel }) {
+export default function Navbar({ onLock, onOpenAIPanel, currentUser }) {
   return (
     <header className="h-16 flex-shrink-0 bg-white/80 backdrop-blur-sm border-b border-darkGreen/[0.06] flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
-      <h1 className="text-lg font-semibold text-darkGreen">Soins d'urgence</h1>
+      <div className="flex flex-col min-w-0">
+        <h1 className="text-lg font-semibold text-darkGreen">Blind</h1>
+        {currentUser && (
+          <span className="text-xs text-darkGreen/50 truncate" title={`Connecté : ${currentUser.name}`}>
+            Connecté : {currentUser.name}
+          </span>
+        )}
+      </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
         {onOpenAIPanel && (

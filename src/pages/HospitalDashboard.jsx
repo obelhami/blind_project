@@ -2,6 +2,7 @@ import { User, Phone, UserPlus, MapPin, CreditCard, Calendar, UserCircle, Image,
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import { useState, useEffect } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { getPatient, addCompteRendu, addOrdonnance, deleteCompteRendu, deleteOrdonnance } from '../api/client'
 import { useCurrentPatient } from '../context/CurrentPatientContext'
 
@@ -17,7 +18,7 @@ const InfoField = ({ icon: Icon, label, value, placeholder = '—', className = 
   </div>
 )
 
-const DEFAULT_PATIENT_ID = 1
+const DEFAULT_PATIENT_ID = 1 // fallback when no user context
 
 const formatDate = () => {
   const d = new Date()
@@ -48,8 +49,9 @@ const useVoiceInput = (onText) => {
 }
 
 export default function HospitalDashboard() {
+  const { currentUser } = useOutletContext() || {}
+  const patientId = currentUser?.userId ?? DEFAULT_PATIENT_ID
   const { setCurrentPatient } = useCurrentPatient()
-  const [patientId] = useState(DEFAULT_PATIENT_ID)
   const [patientData, setPatientData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(null)
@@ -189,7 +191,6 @@ export default function HospitalDashboard() {
       </div>
     )
   }
-
   return (
     <div className="w-full max-w-5xl mx-auto min-h-full flex flex-col gap-6">
       <div className="text-center md:text-left">

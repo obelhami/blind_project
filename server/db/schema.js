@@ -52,7 +52,9 @@ export function initDb() {
   `)
   try {
     db.exec(`ALTER TABLE patients ADD COLUMN groupe_sanguin TEXT DEFAULT ''`)
-    db.exec(`UPDATE patients SET groupe_sanguin = 'O+' WHERE id = 1 AND (groupe_sanguin = '' OR groupe_sanguin IS NULL)`)
+  } catch (_) {}
+  try {
+    db.prepare(`UPDATE patients SET groupe_sanguin = 'O+' WHERE id = 1 AND (COALESCE(groupe_sanguin, '') = '')`).run()
   } catch (_) {}
   return db
 }

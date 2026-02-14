@@ -4,6 +4,7 @@ import cors from 'cors'
 import { initDb } from './db/schema.js'
 import { patientsRouter } from './routes/patients.js'
 import { chatRouter } from './routes/chat.js'
+import './db/seed.js'
 
 initDb()
 
