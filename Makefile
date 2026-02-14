@@ -1,4 +1,4 @@
-.PHONY: build up down logs run dev clean shell
+.PHONY: build up down logs run dev clean shell stop-api
 
 DOCKER_COMPOSE = docker-compose
 
@@ -8,7 +8,7 @@ build:
 
 # Run in background
 up:
-	$(DOCKER_COMPOSE) up 
+	$(DOCKER_COMPOSE) up -d
 
 # Stop and remove containers
 down:
@@ -22,12 +22,15 @@ logs:
 run: build
 	$(DOCKER_COMPOSE) up
 
-# Run locally without Docker (frontend + API)
+# Run full stack locally (API :3001 + Vite :5173) in one terminal
 dev:
-	@echo "Run in two terminals:"
-	@echo "  1) make dev-server  (API on :3001)"
-	@echo "  2) make dev-client  (Vite on :5173)"
-	@echo "Or: make dev-server & make dev-client"
+	npm run dev:all
+
+# Free port 3001 (run this if you get EADDRINUSE, then run make dev again)
+stop-api:
+	@-fuser -k 3001/tcp 2>/dev/null; \
+	(PID=$$(lsof -t -i :3001 2>/dev/null); [ -n "$$PID" ] && kill $$PID) 2>/dev/null; \
+	echo "Port 3001 freed (or was already free)."
 
 dev-server:
 	cd server && npm run dev
