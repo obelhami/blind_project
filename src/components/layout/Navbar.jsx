@@ -12,11 +12,11 @@ export default function Navbar({ onLock, onOpenAIPanel, currentUser }) {
         )}
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-4" >
         {onOpenAIPanel && (
           <button
             onClick={onOpenAIPanel}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-primaryGreen bg-primaryGreen/15 hover:bg-primaryGreen/25 transition-colors text-sm"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-primaryGreen bg-primaryGreen/15 hover:bg-primaryGreen/25 transition-colors text-sm lg:hidden"
             title="Assistant vocal (dossier patient)"
           >
             <Mic className="w-5 h-5" strokeWidth={2} />
@@ -34,12 +34,12 @@ export default function Navbar({ onLock, onOpenAIPanel, currentUser }) {
           <Fingerprint className="w-4 h-4" strokeWidth={2} />
           <span className="hidden md:inline">Verrouiller</span>
         </button>
-        <button
+        {/* <button
           className="p-2 rounded-lg text-darkGreen/70 hover:bg-darkGreen/5 hover:text-darkGreen transition-colors"
           aria-label="Notifications"
         >
           <Bell className="w-5 h-5" strokeWidth={2} />
-        </button>
+        </button> */}
         <div className="w-9 h-9 rounded-full bg-primaryGreen/15 flex items-center justify-center">
           <User className="w-4 h-4 text-primaryGreen" strokeWidth={2} />
         </div>

@@ -54,6 +54,9 @@ export function initDb() {
     db.exec(`ALTER TABLE patients ADD COLUMN groupe_sanguin TEXT DEFAULT ''`)
   } catch (_) {}
   try {
+    db.exec(`ALTER TABLE patients ADD COLUMN photo_identite TEXT DEFAULT ''`)
+  } catch (_) {}
+  try {
     db.prepare(`UPDATE patients SET groupe_sanguin = 'O+' WHERE id = 1 AND (COALESCE(groupe_sanguin, '') = '')`).run()
   } catch (_) {}
   return db

@@ -1,5 +1,11 @@
 import { Router } from 'express'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { db } from '../db/schema.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'patients')
 
 export const patientsRouter = Router()
 
@@ -39,6 +45,7 @@ patientsRouter.get('/:id', (req, res) => {
         adresseComplete: patient.adresse_complete,
         coordonnees: patient.coordonnees,
         personneAContacter: patient.personne_a_contacter,
+        photoIdentite: patient.photo_identite ?? '',
       },
       antecedents: antecedents
         ? { personnels: antecedents.personnels, familiaux: antecedents.familiaux }
@@ -52,6 +59,39 @@ patientsRouter.get('/:id', (req, res) => {
         vendu: Boolean(o.vendu),
       })),
     })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+/** POST /api/patients/:id/photo - set photo d'identité (body: { photo: "data:image/jpeg;base64,..." }) */
+patientsRouter.post('/:id/photo', (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const patient = db.prepare('SELECT id FROM patients WHERE id = ?').get(id)
+    if (!patient) return res.status(404).json({ error: 'Patient not found' })
+
+    const { photo } = req.body
+    if (!photo || typeof photo !== 'string') {
+      return res.status(400).json({ error: 'photo (data URL or base64) is required' })
+    }
+
+    const match = photo.match(/^data:image\/(\w+);base64,(.+)$/)
+    const ext = match ? (match[1] === 'jpeg' ? 'jpg' : match[1]) : 'jpg'
+    const base64 = match ? match[2] : photo
+    const buf = Buffer.from(base64, 'base64')
+    if (buf.length === 0) return res.status(400).json({ error: 'Invalid photo data' })
+
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true })
+    }
+    const filename = `${id}.${ext}`
+    const filepath = path.join(uploadsDir, filename)
+    fs.writeFileSync(filepath, buf)
+    const photoPath = `/uploads/patients/${filename}`
+
+    db.prepare('UPDATE patients SET photo_identite = ? WHERE id = ?').run(photoPath, id)
+    res.json({ photoIdentite: photoPath })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

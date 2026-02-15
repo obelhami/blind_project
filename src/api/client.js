@@ -56,6 +56,14 @@ export async function deleteOrdonnance(patientId, ordId) {
   }
 }
 
+/** POST photo d'identité (body: { photo: "data:image/...;base64,..." }) */
+export async function uploadPatientPhoto(patientId, dataUrl) {
+  return request(`/api/patients/${patientId}/photo`, {
+    method: 'POST',
+    body: JSON.stringify({ photo: dataUrl }),
+  })
+}
+
 /** POST chat message; returns { reply } */
 export async function sendChatMessage(patientId, message) {
   return request('/api/chat', {

@@ -19,6 +19,12 @@ app.use(express.json())
 app.use('/api/patients', patientsRouter)
 app.use('/api/chat', chatRouter)
 
+const uploadsDir = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
+app.use('/uploads', express.static(uploadsDir))
+
 app.get('/api/health', (req, res) => res.json({ ok: true }))
 
 const publicDir = path.join(__dirname, 'public')

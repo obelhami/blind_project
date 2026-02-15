@@ -1,10 +1,11 @@
 import { User, Phone, UserPlus, MapPin, CreditCard, Calendar, UserCircle, Image, Pill, FileEdit, Mic, Printer, Stethoscope, Trash2, ChevronDown, ChevronRight, Droplet } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { getPatient, addCompteRendu, addOrdonnance, deleteCompteRendu, deleteOrdonnance } from '../api/client'
+import { getPatient, addCompteRendu, addOrdonnance, deleteCompteRendu, deleteOrdonnance, uploadPatientPhoto } from '../api/client'
 import { useCurrentPatient } from '../context/CurrentPatientContext'
+import { config } from '../config/env.js'
 
 const InfoField = ({ icon: Icon, label, value, placeholder = '—', className = '' }) => (
   <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 p-4 rounded-xl bg-darkGreen/[0.02] hover:bg-darkGreen/[0.04] transition-colors min-w-0 w-full text-center ${className}`}>
@@ -61,6 +62,9 @@ export default function HospitalDashboard() {
   const [nouveauCompteRendu, setNouveauCompteRendu] = useState('')
   const [expandedCrIds, setExpandedCrIds] = useState(new Set())
   const [expandedOrdIds, setExpandedOrdIds] = useState(new Set())
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoError, setPhotoError] = useState(false)
+  const photoInputRef = useRef(null)
 
   const toggleCr = (id) => {
     setExpandedCrIds((prev) => {
@@ -103,6 +107,10 @@ export default function HospitalDashboard() {
   const antecedents = patientData?.antecedents ?? { personnels: '', familiaux: '' }
   const compteRendus = patientData?.compteRendus ?? []
   const ordonnances = patientData?.ordonnances ?? []
+
+  useEffect(() => {
+    setPhotoError(false)
+  }, [patient?.photoIdentite, patientId])
 
   const { listening: listeningCr, startListening: startCr } = useVoiceInput((text) =>
     setNouveauCompteRendu((prev) => prev + text)
@@ -176,6 +184,31 @@ export default function HospitalDashboard() {
     }
   }
 
+  const handlePhotoChange = (e) => {
+    const file = e.target?.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      setPhotoUploading(true)
+      try {
+        const { photoIdentite } = await uploadPatientPhoto(patientId, reader.result)
+        setPhotoError(false)
+        const cacheBust = `${photoIdentite}?t=${Date.now()}`
+        setPatientData((prev) => prev?.patient ? { ...prev, patient: { ...prev.patient, photoIdentite: cacheBust } } : null)
+      } catch (err) {
+        alert(err.message || 'Erreur enregistrement photo')
+      } finally {
+        setPhotoUploading(false)
+        e.target.value = ''
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const triggerPhotoInput = () => {
+    if (!photoUploading) photoInputRef.current?.click()
+  }
+
   if (loading) {
     return (
       <div className="w-full max-w-5xl mx-auto min-h-full flex items-center justify-center py-12">
@@ -209,11 +242,39 @@ export default function HospitalDashboard() {
           <InfoField icon={MapPin} label="Adresse complète" value={patient.adresseComplete} />
           <InfoField icon={Phone} label="Coordonnées" value={patient.coordonnees} />
           <InfoField icon={UserPlus} label="Personne à contacter" value={patient.personneAContacter} />
-          <div className="flex flex-col items-center justify-center p-4">
-            <div className="w-28 h-36 rounded-xl bg-darkGreen/[0.06] border border-darkGreen/10 flex flex-col items-center justify-center overflow-hidden">
-              <Image className="w-10 h-10 text-darkGreen/30 mb-2" strokeWidth={1.5} />
-              <span className="text-xs text-darkGreen/50">Photo d'identité</span>
-            </div>
+          <div className="flex flex-col items-center justify-center p-4 gap-3">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={handlePhotoChange}
+              disabled={photoUploading}
+              aria-label="Choisir une photo"
+            />
+            <button
+              type="button"
+              onClick={triggerPhotoInput}
+              disabled={photoUploading}
+              className="w-28 h-36 rounded-xl bg-darkGreen/[0.06] border border-darkGreen/10 flex flex-col items-center justify-center overflow-hidden hover:bg-darkGreen/[0.08] hover:border-primaryGreen/30 transition-colors focus:outline-none focus:ring-2 focus:ring-primaryGreen/40 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {patient.photoIdentite && !photoError ? (
+                <img
+                  src={(config?.apiUrl || '') + patient.photoIdentite}
+                  alt="Photo d'identité"
+                  className="w-full h-full object-cover"
+                  onError={() => setPhotoError(true)}
+                />
+              ) : (
+                <>
+                  <Image className="w-10 h-10 text-darkGreen/30 mb-2" strokeWidth={1.5} />
+                  <span className="text-xs text-darkGreen/50">Photo d'identité</span>
+                </>
+              )}
+            </button>
+            <span className="text-xs font-medium text-primaryGreen cursor-pointer hover:underline" onClick={triggerPhotoInput} onKeyDown={(e) => e.key === 'Enter' && triggerPhotoInput()} role="button" tabIndex={0}>
+              {photoUploading ? 'Envoi en cours…' : patient.photoIdentite ? 'Changer la photo' : 'Ajouter une photo'}
+            </span>
           </div>
         </div>
       </Card>
